@@ -30,7 +30,8 @@ const app = new Elysia()
     {
       beforeHandle({ bearer }) {
         if (!bearer) return status(401)
-        const res = users.filter((u) => u.secret === bearer)
+        const res = users.filter((u) => u.secret === bearer && u.role === "admin")
+        // this only works if secrets are unique
         if (!res.length || res[0].secret !== bearer) return status(401)
       }
     }
