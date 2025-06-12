@@ -37,20 +37,6 @@ const app = new Elysia({
       bearer: auth?.startsWith('Bearer ') ? auth.slice(7) : null
     }
   })
-  .get("/api/protected", (bearer) => {
-    console.log(bearer)
-    return { message: "Only admin should be able to see this" }
-  },
-    {
-      beforeHandle({ bearer }) {
-        if (!bearer) return status(401)
-        const res = users.filter((u) => u.secret === bearer && u.role === "admin")
-        // this only works if secrets are unique
-        if (!res.length || res[0].secret !== bearer) return status(401)
-      }
-    }
-  )
-
   .use(
     jwt({
       name: 'jwt',
@@ -58,6 +44,42 @@ const app = new Elysia({
       exp: '1h'
     })
   )
+  .get("/api/protected", (bearer) => {
+    console.log(bearer)
+    return { message: "Only admin should be able to see this" }
+  },
+    {
+      async beforeHandle({ bearer, cookie: { auth }, jwt, redirect }) {
+        console.log("we are in beforeHandle")
+        if (!bearer) return status(401)
+        const res = users.filter((u) => u.secret === bearer && u.role === "admin")
+        // this only works if secrets are unique
+        if (!res.length || res[0].secret !== bearer) return status(401)
+        // console.log('auth')
+        // console.log(auth)
+        if (!auth) {
+          return redirect('/api/login')
+        }
+        console.log('auth.value')
+        console.log(auth.value)
+        // console.log('auth.expires')
+        // console.log(auth.expires) // will be undefined, since http requests only send cookie value, not metadata like expires
+        // when cookie expires, browser will stop sending it with requests, so don't need to handle expiry here
+
+        // decode jwt, verify signature, check if role is admin, handle expiration
+        const decodedAuthValue = await jwt.verify(auth.value) // verifies handles expiration checking, we don't have to check it ourselves
+        console.log("decodedAuthValue")
+        console.log(decodedAuthValue)
+        if (!decodedAuthValue) return status(401)
+
+        if (!decodedAuthValue.role || decodedAuthValue.role === 'basic')
+          return status(401)
+
+        console.log("end of beforeHandle")
+      }
+    }
+  )
+
   .post('/api/login',
     async ({ jwt, body, cookie: { auth } }) => {
       const username = body.username
@@ -70,10 +92,18 @@ const app = new Elysia({
       console.log(username, password, id, role)
       // sign jwt
       const signedJwt = await jwt.sign({ id, role, exp: '1h' })
+      // const signedJwt = await jwt.sign({ id, role, exp: '1m' }) // 1min exp for test
+      console.log("signedJwt")
       console.log(signedJwt)
       // set auth cookie:
       auth.set({ value: signedJwt, expires: new Date(Date.now() + (3600 * 1000 * 24)) })
       console.log(auth)
+      console.log("set auth.value")
+      console.log(auth.value)
+      console.log("set auth.expires")
+      console.log(auth.expires)
+      // can check cookie is saved in chrome developer tools > application > cookie
+      return "logged in"
     },
     { // validate types
       body: t.Object({
