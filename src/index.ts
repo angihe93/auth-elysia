@@ -31,7 +31,7 @@ const app = new Elysia({
 
   .get("/api/public", () => { return { message: "This is public information" } })
 
-  .post("/login", () => { // user login page placeholder
+  .get("/login", () => { // user login page placeholder
     return "public login page"
   })
 
