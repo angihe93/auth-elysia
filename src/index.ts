@@ -31,6 +31,10 @@ const app = new Elysia({
 
   .get("/api/public", () => { return { message: "This is public information" } })
 
+  .post("/login", () => { // user login page placeholder
+    return "public login page"
+  })
+
   .derive(({ headers }) => {
     const auth = headers['authorization']
     return { // add bearer to the context for all subsequent handlers
@@ -57,8 +61,9 @@ const app = new Elysia({
         if (!res.length || res[0].secret !== bearer) return status(401)
         // console.log('auth')
         // console.log(auth)
-        if (!auth) {
-          return redirect('/api/login')
+        if (!auth.value) {
+          console.log('redirect to login')
+          return redirect('/login')
         }
         console.log('auth.value')
         console.log(auth.value)
@@ -70,7 +75,10 @@ const app = new Elysia({
         const decodedAuthValue = await jwt.verify(auth.value) // verifies handles expiration checking, we don't have to check it ourselves
         console.log("decodedAuthValue")
         console.log(decodedAuthValue)
-        if (!decodedAuthValue) return status(401)
+        if (!decodedAuthValue) {
+          console.log('redirect to login')
+          return redirect('/login')
+        }
 
         if (!decodedAuthValue.role || decodedAuthValue.role === 'basic')
           return status(401)
